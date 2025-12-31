@@ -7,7 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #334155; }
         .hidden { display: none; }
         .active-tab { 
@@ -128,7 +128,7 @@
                     <div><label class="label-text">Curetagem</label><input id="curetagem" class="input-field"></div>
                     
                     <div class="md:col-span-2"><label class="label-text">IG (USG Data e IG)</label><input id="ig_usg" class="input-field"></div>
-                    <div class="md:col-span-2"><label class="label-text">TS | Toxo | GJ | TOTG</label><input id="labs_triagem" class="input-field"></div>
+                    <div class="md:col-span-2"><label class="label-text">TS | TOXO | GJ | TOTG</label><input id="labs_triagem" class="input-field"></div>
                     
                     <div><label class="label-text">Consultas PN</label><input id="pn_count" class="input-field"></div>
                     <div><label class="label-text">GBS</label><input id="gbs" class="input-field"></div>
@@ -153,8 +153,6 @@
 
             <!-- 2. ANAMNESE INTELIGENTE -->
             <section id="tab-anamnese" class="hidden grid grid-cols-1 md:grid-cols-2 gap-6 animate-in">
-                
-                <!-- Coluna Esquerda: Entrada -->
                 <div class="space-y-4">
                     <div>
                         <label class="label-text text-blue-700">QUEIXA PRINCIPAL (QP)</label>
@@ -167,22 +165,18 @@
                         <p class="text-[10px] text-slate-400 mt-1">*Digite a queixa e clique no ícone ou saia do campo para gerar perguntas.</p>
                     </div>
 
-                    <!-- Box de Perguntas IA -->
                     <div id="ai-questions-box" class="hidden border border-blue-100 bg-blue-50/50 rounded-xl p-4 transition-all">
                         <div class="flex justify-between items-center mb-3">
                             <h3 class="text-xs font-bold text-blue-700 flex items-center gap-2"><i data-lucide="bot" class="w-3 h-3"></i> PERGUNTAS SUGERIDAS</h3>
                             <div class="typing-indicator hidden" id="typing-questions"><span></span><span></span><span></span></div>
                         </div>
-                        <div id="questions-list" class="space-y-3 text-xs">
-                            <!-- Perguntas geradas aqui -->
-                        </div>
+                        <div id="questions-list" class="space-y-3 text-xs"></div>
                         <button onclick="generateAnamnesisText()" class="w-full mt-4 btn-primary text-xs py-2 shadow-sm flex items-center justify-center gap-2">
                             <i data-lucide="pen-tool" class="w-3 h-3"></i> GERAR TEXTO DA HDA
                         </button>
                     </div>
                 </div>
 
-                <!-- Coluna Direita: Texto Final -->
                 <div class="space-y-4">
                     <div class="h-full flex flex-col">
                         <label class="label-text text-blue-700">HISTÓRIA DA DOENÇA ATUAL (HDA)</label>
@@ -190,7 +184,6 @@
                     </div>
                 </div>
 
-                <!-- Campos Inferiores -->
                 <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-slate-100">
                     <div class="obst-field w-full">
                         <label class="label-text">HD (Negativas)</label>
@@ -220,7 +213,6 @@
                 <div><label class="label-text">AR</label><input id="ar" class="input-field" value="MV+, SRA, SEM SINAIS DE DESCONFORTO"></div>
                 <div class="md:col-span-2"><label class="label-text">Abdome</label><input id="abd" class="input-field" value="ABDOME GRAVIDICO, SEM DOR A PALPAÇÃO, RHA+, DB NEGATIVA."></div>
 
-                <!-- OBST -->
                 <div class="obst-field"><label class="label-text">Dinâmica</label><input id="dinamica" class="input-field" value="AUSENTE"></div>
                 <div class="obst-field"><label class="label-text">AFU (cm)</label><input id="afu" class="input-field text-center font-bold"></div>
                 <div class="obst-field"><label class="label-text text-blue-600">BCF (bpm)</label><input id="bcf" class="input-field text-center font-bold text-blue-600 border-blue-200"></div>
@@ -239,7 +231,7 @@
                         <i data-lucide="scan-line" class="w-12 h-12 text-blue-400 mx-auto mb-3 group-hover:scale-110 transition-transform"></i>
                         <h3 class="text-sm font-bold text-blue-800 uppercase">Leitura Mágica de Documentos</h3>
                         <p class="text-xs text-blue-500 mt-1">Arraste PDF ou Foto aqui para preencher tudo automaticamente</p>
-                        <div id="ai-status" class="mt-4 text-xs font-mono text-blue-600 hidden bg-white px-3 py-1 rounded-full inline-block shadow-sm">Processando...</div>
+                        <div id="ai-status" class="mt-4 text-xs font-mono text-blue-600 hidden bg-white px-3 py-1 rounded-full inline-block shadow-sm font-bold">Aguardando arquivo...</div>
                     </div>
                 </div>
 
@@ -286,10 +278,41 @@
 
     <script>
         lucide.createIcons();
-        const API_KEY = "AIzaSyCqzFaH4nQGkBLLLTDyEQtbtwAUxTFeoH0";
+        
+        // A API Key deve ser deixada vazia para funcionar no ambiente Canvas/Preview.
+        // Se for hospedar externamente (GitHub Pages), insira sua chave entre as aspas abaixo.
+        const API_KEY = ""; 
+        
         let MODE = 'OBST';
 
-        // --- SISTEMA DE ABAS ---
+        // Helper para chamadas Gemini com Retry Exponencial e tratamento de erros
+        async function fetchGemini(payload, retryCount = 0) {
+            try {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEY}`;
+                const resp = await fetch(url, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                
+                if (!resp.ok) {
+                    const errData = await resp.json().catch(() => ({}));
+                    console.error('Gemini API Error:', errData);
+                    throw new Error(errData.error?.message || 'API Error');
+                }
+                
+                const data = await resp.json();
+                return data.candidates?.[0]?.content?.parts?.[0]?.text;
+            } catch (err) {
+                if (retryCount < 5) {
+                    const delay = Math.pow(2, retryCount) * 1000;
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    return fetchGemini(payload, retryCount + 1);
+                }
+                throw err;
+            }
+        }
+
         function showTab(id) {
             document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
             document.getElementById('tab-' + id).classList.remove('hidden');
@@ -297,7 +320,6 @@
                 b.classList.remove('active-tab', 'text-blue-700', 'bg-blue-50');
                 if(b.id !== 'nav-final') b.classList.add('text-slate-500');
             });
-            
             const btn = document.getElementById('nav-' + id);
             if(id !== 'final') {
                 btn.classList.add('active-tab', 'text-blue-700', 'bg-blue-50');
@@ -305,7 +327,6 @@
             }
         }
 
-        // --- SELETOR OBST/GYN ---
         function setMode(mode) {
             MODE = mode;
             const btnObst = document.getElementById('btn-obst');
@@ -317,249 +338,136 @@
                 btnObst.className = "px-5 py-2 rounded-md text-xs font-bold transition-all bg-white text-blue-700 shadow-sm border border-slate-200";
                 btnGyn.className = "px-5 py-2 rounded-md text-xs font-bold transition-all text-slate-500 hover:text-slate-700";
                 document.getElementById('header-subtitle').innerText = "URGÊNCIA OBSTETRÍCIA";
-                document.getElementById('header-subtitle').className = "text-xs text-blue-500 font-semibold uppercase";
-                
                 obstFields.forEach(e => e.classList.remove('hidden'));
                 gynFields.forEach(e => e.classList.add('hidden'));
-                
-                // Defaults
-                document.getElementById('abd').value = "ABDOME GRAVIDICO, SEM DOR A PALPAÇÃO, RHA+, DB NEGATIVA.";
-                document.getElementById('especular').value = "COLO TRÓFICO, ORIFÍCIO EXTERNO PUNTIFORME, VAGINA COM RUGOSIDADES TRÓFICAS E ÚMIDA. CONTEUDO VAGINAL";
-                document.getElementById('tv').value = "COLO POSTERIOR, IMPERVIO, GROSSO.";
-                document.getElementById('conduta').value = "ORIENTO PACIENTE SOBRE O QUADRO. ORIENTO RETORNO IMEDIATO SE SINAIS DE ALARME: PICO APRESSÓRICO, REDUÇÃO DE MF, PERDA DE LIQUIDO, SANGRAMENTO VAGINAL.";
             } else {
                 btnGyn.className = "px-5 py-2 rounded-md text-xs font-bold transition-all bg-white text-pink-600 shadow-sm border border-pink-200";
                 btnObst.className = "px-5 py-2 rounded-md text-xs font-bold transition-all text-slate-500 hover:text-slate-700";
                 document.getElementById('header-subtitle').innerText = "CONSULTA GINECOLÓGICA";
-                document.getElementById('header-subtitle').className = "text-xs text-pink-500 font-semibold uppercase";
-                
                 obstFields.forEach(e => e.classList.add('hidden'));
                 gynFields.forEach(e => e.classList.remove('hidden'));
-                
-                // Defaults
-                document.getElementById('abd').value = "RHA +, FLACIDO, INDOLOR A PALPAÇÃO SUPERFICIAL E PROFUNDA, SVM OU MASSAS, DB NEGATIVA";
-                document.getElementById('especular').value = "COLO TRÓFICO, PUNTIFORME, VAGINA TRÓFICA, COM RUGOSIDADES NORMAIS E LUBRIFICAÇÃO HABITUAL. AUSÊNCIA DE ALTERAÇÕES.";
-                document.getElementById('tv').value = "COLO POSTERIOR, FIBROELASTICO, UTÉRO AVF, MÓVEL, NORMOVOLUMÉTRIO, DOR À MOBILIZAÇÃO DO COLO EM FID, ANEXOS NÃO PALPAVEIS";
-                document.getElementById('conduta').value = "ORIENTO PACIENTE SOBRE O QUADRO, TRATAMENTO E SEGUIMENTO PROPOSTO. ORIENTO SINAIS DE ALARME.";
             }
         }
 
-        // --- IA: GERADOR DE PERGUNTAS (QP) ---
         async function generateQuestions() {
             const qp = document.getElementById('qp').value;
             const box = document.getElementById('ai-questions-box');
             const list = document.getElementById('questions-list');
             const indicator = document.getElementById('typing-questions');
-
             if (!qp) return;
-
             box.classList.remove('hidden');
             list.innerHTML = '';
             indicator.classList.remove('hidden');
 
-            const prompt = `Como médico obstetra/ginecologista experiente, liste 5 perguntas clínicas curtas e diretas essenciais para anamnese de uma paciente com queixa de: "${qp}". Foco em diagnóstico diferencial e gravidade. Retorne apenas as perguntas em lista.`;
+            const payload = {
+                contents: [{ parts: [{ text: `Como médico obstetra/ginecologista experiente, liste 5 perguntas clínicas curtas e diretas essenciais para anamnese de uma paciente com queixa de: "${qp}". Foco em diagnóstico diferencial e gravidade. Retorne apenas as perguntas em lista.` }] }]
+            };
 
             try {
-                const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEY}`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-                });
-                
-                const data = await resp.json();
-                const text = data.candidates[0].content.parts[0].text;
-                
-                // Limpa e formata as perguntas como inputs interativos
+                const text = await fetchGemini(payload);
                 const questions = text.split('\n').filter(q => q.trim().length > 0);
-                
                 indicator.classList.add('hidden');
-                list.innerHTML = questions.map((q, idx) => `
+                list.innerHTML = questions.map(q => `
                     <div class="mb-2">
                         <label class="block text-slate-600 font-semibold mb-1">${q.replace(/^\d+\.\s*|-\s*/, '')}</label>
                         <input class="input-field text-xs q-response" placeholder="Digite a resposta..." data-question="${q}">
                     </div>
                 `).join('');
-
             } catch (e) {
-                console.error(e);
                 indicator.classList.add('hidden');
-                list.innerHTML = '<p class="text-red-500">Erro ao gerar perguntas.</p>';
+                list.innerHTML = `<p class="text-red-500 text-[10px]">Falha na conexão: ${e.message}</p>`;
             }
         }
 
-        // --- IA: GERADOR DE TEXTO DE ANAMNESE ---
         async function generateAnamnesisText() {
             const qp = document.getElementById('qp').value;
-            const responses = Array.from(document.querySelectorAll('.q-response')).map(input => {
-                return input.value ? `Pergunta: ${input.dataset.question} Resposta: ${input.value}` : null;
-            }).filter(Boolean);
-
-            if (responses.length === 0) {
-                alert("Responda pelo menos uma pergunta para gerar o texto.");
-                return;
-            }
+            const responses = Array.from(document.querySelectorAll('.q-response')).map(input => input.value ? `Pergunta: ${input.dataset.question} Resposta: ${input.value}` : null).filter(Boolean);
+            if (responses.length === 0) return alert("Responda pelo menos uma pergunta.");
 
             const btn = document.querySelector('#ai-questions-box button');
             const originalText = btn.innerHTML;
-            btn.innerHTML = `<i data-lucide="loader-2" class="w-3 h-3 animate-spin"></i> GERANDO...`;
+            btn.innerHTML = `GERANDO...`;
             
-            const prompt = `Atue como médico. Com base na QP: "${qp}" e nas seguintes respostas da anamnese: ${responses.join('; ')}. Redija um texto coerente, técnico e fluido para o campo "História da Doença Atual" (HDA) de um prontuário médico. Use termos técnicos médicos padrão. Não use tópicos, faça um parágrafo narrativo.`;
+            const payload = {
+                contents: [{ parts: [{ text: `Atue como médico. Com base na QP: "${qp}" e nas seguintes respostas da anamnese: ${responses.join('; ')}. Redija um texto coerente, técnico e fluido para o campo "História da Doença Atual" (HDA). Use termos técnicos padrão, sem tópicos.` }] }]
+            };
 
             try {
-                const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEY}`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-                });
-                
-                const data = await resp.json();
-                const text = data.candidates[0].content.parts[0].text;
-                
+                const text = await fetchGemini(payload);
                 document.getElementById('hda').value = text;
-                document.getElementById('ai-questions-box').classList.add('hidden'); // Esconde box após gerar
-                
-            } catch (e) {
-                alert("Erro ao gerar texto.");
-            } finally {
-                btn.innerHTML = originalText;
-                lucide.createIcons();
-            }
+                document.getElementById('ai-questions-box').classList.add('hidden');
+            } catch (e) { alert("Erro ao gerar texto: " + e.message); }
+            finally { btn.innerHTML = originalText; }
         }
 
-        // --- IA: LEITURA DE ARQUIVO ---
         async function processFile() {
             const input = document.getElementById('file-input');
             const status = document.getElementById('ai-status');
             if(!input.files[0]) return;
 
             status.classList.remove('hidden');
-            status.innerText = "Lendo e extraindo dados...";
+            status.innerText = "Lendo arquivo e processando...";
 
             const file = input.files[0];
             const reader = new FileReader();
             
             reader.onload = async function(e) {
-                const base64 = e.target.result.split(',')[1];
-                const prompt = `Extraia dados médicos para JSON estrito: nome, idade, prontuario, gpa, ultimo_parto, filhos_vivos, curetagem, ig_usg, ts, toxo, gj, totg, comorbidades, muc, alergias, cirurgias, habitos, pn_count, gbs, maturacao, qp, hda, pa, fc, abd, dinamica, afu, bcf, mf, especular, tv, mmii, apae1, apae2, usg1t, usgmorf, usg_ultimo, dum, sexarca, mac`;
-
                 try {
-                    const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEY}`, {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({
-                            contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType: file.type, data: base64 } }] }],
-                            generationConfig: { responseMimeType: "application/json" }
-                        })
-                    });
-                    const data = await resp.json();
-                    const json = JSON.parse(data.candidates[0].content.parts[0].text);
+                    const base64 = e.target.result.split(',')[1];
+                    const mimeType = file.type || "application/octet-stream";
                     
-                    const set = (id, v) => { if(document.getElementById(id) && v) document.getElementById(id).value = v; }
+                    const systemPrompt = `Você é um assistente médico especialista em Ginecologia e Obstetrícia. Extraia TODOS os dados clínicos do material fornecido e retorne APENAS um objeto JSON válido. Sempre forneça apenas a 'Síntese dos Resultados' dos exames, sem símbolos especiais ou setas de anotação.`;
+                    const userPrompt = `Extraia dados médicos para um objeto JSON com as chaves: nome, idade, prontuario, gpa, ultimo_parto, filhos_vivos, curetagem, ig_usg, ts, toxo, gj, totg, comorbidades, muc, alergias, cirurgias, habitos, pn_count, gbs, maturacao, qp, hda, pa, fc, sat, abd, dinamica, afu, bcf, mf, especular, tv, mmii, apae1, apae2, usg1t, usgmorf, exames_comp, dum, sexarca, mac.`;
+
+                    const payload = {
+                        contents: [{ parts: [{ text: userPrompt }, { inlineData: { mimeType: mimeType, data: base64 } }] }],
+                        systemInstruction: { parts: [{ text: systemPrompt }] },
+                        generationConfig: { responseMimeType: "application/json" }
+                    };
+
+                    const text = await fetchGemini(payload);
+                    const json = JSON.parse(text);
+                    
+                    const set = (id, v) => { 
+                        const el = document.getElementById(id);
+                        if(el && v !== undefined && v !== null) el.value = String(v).toUpperCase(); 
+                    }
+                    
                     set('nome', json.nome); set('idade', json.idade); set('prontuario', json.prontuario);
                     set('gpa', json.gpa); set('gpa_gyn', json.gpa); set('ultimo_parto', json.ultimo_parto);
                     set('filhos_vivos', json.filhos_vivos); set('curetagem', json.curetagem);
-                    set('ig_usg', json.ig_usg); set('labs_triagem', `${json.ts || ''} ${json.toxo ? '| TOXO: '+json.toxo : ''} ${json.gj ? '| GJ: '+json.gj : ''}`);
+                    set('ig_usg', json.ig_usg); 
+                    set('labs_triagem', `${json.ts || ''} | ${json.toxo || ''} | ${json.gj || ''} | ${json.totg || ''}`);
                     set('comorbidades', json.comorbidades); set('muc', json.muc); set('alergias', json.alergias);
                     set('cirurgias', json.cirurgias); set('habitos', json.habitos); set('pn_count', json.pn_count);
                     set('gbs', json.gbs); set('maturacao', json.maturacao);
                     set('qp', json.qp); set('hda', json.hda);
-                    set('pa', json.pa); set('fc', json.fc);
-                    set('usg_ultimo', json.usg_ultimo); set('dum', json.dum); set('sexarca', json.sexarca); set('mac', json.mac);
+                    set('pa', json.pa); set('fc', json.fc); set('sat', json.sat);
+                    set('abd', json.abd); set('dinamica', json.dinamica); set('afu', json.afu); set('bcf', json.bcf); set('mf', json.mf);
+                    set('especular', json.especular); set('tv', json.tv); set('mmii', json.mmii);
+                    set('apae1', json.apae1); set('apae2', json.apae2); set('usg_1t', json.usg1t); set('usg_morf', json.usgmorf);
+                    set('exames_comp', json.exames_comp); 
+                    set('dum', json.dum); set('sexarca', json.sexarca); set('mac', json.mac);
 
-                    status.innerText = "Concluído!";
-                    setTimeout(() => status.classList.add('hidden'), 2000);
+                    status.innerText = "Extração concluída!";
+                    setTimeout(() => status.classList.add('hidden'), 3000);
                 } catch(err) {
-                    status.innerText = "Erro na leitura.";
+                    status.innerText = "Erro no processamento: " + err.message;
+                    console.error('Process error:', err);
                 }
             };
             reader.readAsDataURL(file);
         }
 
-        // --- GERAÇÃO DE SAÍDA ---
         function generateOutput() {
             const v = (id) => document.getElementById(id).value.toUpperCase().trim() || 'NEGA/NÃO INF.';
             const d = new Date().toLocaleDateString('pt-BR');
             let out = "";
 
             if (MODE === 'OBST') {
-                out = `## URGÊNCIA OBSTETRÍCIA MATERNIDADE - DATA ${d} ###\n\n`;
-                out += `- NOME: ${v('nome')}\n`;
-                out += `- IDADE: ${v('idade')}\n`;
-                out += `- PRONTUÁRIO: ${v('prontuario')}\n`;
-                out += `- PARIDADE: ${v('gpa')}\n`;
-                out += `   >> ÚLTIMO PARTO/ CESÁREA HÁ: ${v('ultimo_parto')}\n`;
-                out += `   >> N° FILHOS VIVOS: ${v('filhos_vivos')}\n`;
-                out += `   >> CURETAGEM: ${v('curetagem')}\n`;
-                out += `- IG: ${v('ig_usg')}\n`;
-                out += `- TS: | TOXOPLASMOSE: | GJ: | TOTG: ${v('labs_triagem')}\n`;
-                out += `- COMORBIDADES: ${v('comorbidades')}\n`;
-                out += `- MUC: ${v('muc')}\n`;
-                out += `- ALERGIAS: ${v('alergias')}\n`;
-                out += `- CIRURGIAS PRÉVIAS: ${v('cirurgias')}\n`;
-                out += `- TABAGISMO/ ETILISMO/UDI: ${v('habitos')}\n`;
-                out += `- QUANTIDADES DE CONSULTAS DE PRÉ-NATAL: ${v('pn_count')}\n`;
-                out += `- GBS: ${v('gbs')}\n`;
-                out += `- MATURAÇÃO: ${v('maturacao')}\n\n`;
-                out += `# QP: ${v('qp')}\n\n`;
-                out += `# HDA: ${v('hda')}\n\n`;
-                out += `# HD: ${v('hd_neg')}\n\n`;
-                out += `# EXAME FÍSICO:\n`;
-                out += `- ${v('ef_geral')}\n`;
-                out += `- SINAIS VITAIS: PA: ${v('pa')} MMHG / FC: ${v('fc')} BPM\n`;
-                out += `- ACV: ${v('acv')}\n`;
-                out += `- AR: ${v('ar')}\n`;
-                out += `- ABD: ${v('abd')}\n`;
-                out += `- DINAMICA UTERINA: ${v('dinamica')}\n`;
-                out += `- AFU: ${v('afu')} CM; AL FISIOLOGICO\n`;
-                out += `- BCF: ${v('bcf')} BPM- SEM DESACELERAÇÕES\n`;
-                out += `- MOVIMENTOS FETAIS: ${v('mf')}\n`;
-                out += `- ESPECULAR (SE REALIZADO): ${v('especular')}\n`;
-                out += `- TV (SE REALIZADO): ${v('tv')}\n`;
-                out += `- MMII: ${v('mmii')}\n\n`;
-                out += `# EXAMES COMPLEMENTARES:\n>> APAE<<\n`;
-                out += `- APAE I (DATA): ${v('apae1')}\n`;
-                out += `- APAE II (DATA): ${v('apae2')}\n`;
-                out += `>> USG<<\n`;
-                out += `- USG 1T: ${v('usg_1t')}\n`;
-                out += `- USG MORFOLOGICO: ${v('usg_morf')}\n`;
-                out += `- ÚLTIMO USG: ${v('exames_comp')}\n`;
-                out += `- SEMPRE RECALCULAR PESO PELO HADLOCK (SITE PERINATOLOGY)\n\n`;
-                out += `# PLANO DE PARTO: ${v('plano_parto')}\n`;
-                out += `- GESTAÇÃO TÓPICA IG: ${v('gestacao_ig')}\n\n`;
-                out += `# CONDUTA DISCUTIDA E ORIENTADA POR STAFF DR ${v('staff')}\n`;
-                out += `- ${v('conduta')}`;
+                out = `## URGÊNCIA OBSTETRÍCIA MATERNIDADE - DATA ${d} ###\n\n- NOME: ${v('nome')}\n- IDADE: ${v('idade')}\n- PRONTUÁRIO: ${v('prontuario')}\n- PARIDADE: ${v('gpa')}\n   >> ÚLTIMO PARTO/ CESÁREA HÁ: ${v('ultimo_parto')}\n   >> N° FILHOS VIVOS: ${v('filhos_vivos')}\n   >> CURETAGEM: ${v('curetagem')}\n- IG: ${v('ig_usg')}\n- TS: | TOXOPLASMOSE: | GJ: | TOTG: ${v('labs_triagem')}\n- COMORBIDADES: ${v('comorbidades')}\n- MUC: ${v('muc')}\n- ALERGIAS: ${v('alergias')}\n- CIRURGIAS PRÉVIAS: ${v('cirurgias')}\n- TABAGISMO/ ETILISMO/UDI: ${v('habitos')}\n- QUANTIDADES DE CONSULTAS DE PRÉ-NATAL: ${v('pn_count')}\n- GBS: ${v('gbs')}\n- MATURAÇÃO: ${v('maturacao')}\n\n# QP: ${v('qp')}\n\n# HDA: ${v('hda')}\n\n# HD: ${v('hd_neg')}\n\n# EXAME FÍSICO:\n- ${v('ef_geral')}\n- SINAIS VITAIS: PA: ${v('pa')} MMHG / FC: ${v('fc')} BPM\n- ACV: ${v('acv')}\n- AR: ${v('ar')}\n- ABD: ${v('abd')}\n- DINAMICA UTERINA: ${v('dinamica')}\n- AFU: ${v('afu')} CM; AL FISIOLOGICO\n- BCF: ${v('bcf')} BPM- SEM DESACELERAÇÕES\n- MOVIMENTOS FETAIS: ${v('mf')}\n- ESPECULAR (SE REALIZADO): ${v('especular')}\n- TV (SE REALIZADO): ${v('tv')}\n- MMII: ${v('mmii')}\n\n# EXAMES COMPLEMENTARES:\n>> APAE<<\n- APAE I (DATA): ${v('apae1')}\n- APAE II (DATA): ${v('apae2')}\n>> USG<<\n- USG 1T: ${v('usg_1t')}\n- USG MORFOLOGICO: ${v('usg_morf')}\n- ÚLTIMO USG: ${v('exames_comp')}\n- SEMPRE RECALCULAR PESO PELO HADLOCK\n\n# PLANO DE PARTO: ${v('plano_parto')}\n- GESTAÇÃO TÓPICA IG: ${v('gestacao_ig')}\n\n# CONDUTA DISCUTIDA E ORIENTADA POR STAFF DR ${v('staff')}\n- ${v('conduta')}`;
             } else {
-                out = `###########################################################\n`;
-                out += `###### CONSULTA GINECOLÓGICA  URGÊNCIA - DATA ${d} #####\n\n`;
-                out += `- NOME: ${v('nome')}\n`;
-                out += `- PRONTUÁRIO: ${v('prontuario')}\n`;
-                out += `- IDADE: ${v('idade')}\n`;
-                out += `- COMORBIDADES: ${v('comorbidades')}\n`;
-                out += `- MUC: ${v('muc')}\n`;
-                out += `- ALERGIAS: ${v('alergias')}\n`;
-                out += `- CIRURGIAS: ${v('cirurgias')}\n\n`;
-                out += `# ANTECEDENTES GINECO-OBSTÉTRICOS:\n`;
-                out += `- ${v('gpa_gyn')}\n`;
-                out += `- DUM: ${v('dum')}\n`;
-                out += `- SEXARCA: ${v('sexarca')}\n`;
-                out += `- MÉTODO CONTRACEPTIVO: ${v('mac')}\n\n`;
-                out += `# HDA: ${v('hda')}\n\n`;
-                out += `# IS:\n`;
-                out += `- URINÁRIAS: ${v('is_urinarias')}\n`;
-                out += `- HABITO INTESTINAL: ${v('is_intestinal')}\n\n`;
-                out += `# EXAME FÍSICO\n`;
-                out += `- SSVV: PA ${v('pa')} MMHG // FC ${v('fc')} BPM // SAT ${v('sat')}% AA\n`;
-                out += `- ${v('ef_geral')}\n`;
-                out += `- ACV: ${v('acv')}\n`;
-                out += `- AR: ${v('ar')}\n`;
-                out += `- ABD: ${v('abd')}\n`;
-                out += `- ESPECULAR: ${v('especular')}\n`;
-                out += `- TV: ${v('tv')}\n`;
-                out += `- MMII: ${v('mmii')}\n\n`;
-                out += `# CD ORIENTADA POR STAFF DR.(A) ${v('staff')}:\n`;
-                out += `# EXAMES COMPLEMENTARES:\n${v('exames_comp')}\n\n`;
-                out += `- ${v('conduta')}\n\n`;
-                out += `QUEIXAS GINECOLOGICAS: ${v('queixas_gyn')}`;
+                out = `###########################################################\n###### CONSULTA GINECOLÓGICA  URGÊNCIA - DATA ${d} #####\n\n- NOME: ${v('nome')}\n- PRONTUÁRIO: ${v('prontuario')}\n- IDADE: ${v('idade')}\n- COMORBIDADES: ${v('comorbidades')}\n- MUC: ${v('muc')}\n- ALERGIAS: ${v('alergias')}\n- CIRURGIAS: ${v('cirurgias')}\n\n# ANTECEDENTES GINECO-OBSTÉTRICOS:\n- ${v('gpa_gyn')}\n- DUM: ${v('dum')}\n- SEXARCA: ${v('sexarca')}\n- MÉTODO CONTRACEPTIVO: ${v('mac')}\n\n# HDA: ${v('hda')}\n\n# IS:\n- URINÁRIAS: ${v('is_urinarias')}\n- HABITO INTESTINAL: ${v('is_intestinal')}\n\n# EXAME FÍSICO\n- SSVV: PA ${v('pa')} MMHG // FC ${v('fc')} BPM // SAT ${v('sat')}% AA\n- ${v('ef_geral')}\n- ACV: ${v('acv')}\n- AR: ${v('ar')}\n- ABD: ${v('abd')}\n- ESPECULAR: ${v('especular')}\n- TV: ${v('tv')}\n- MMII: ${v('mmii')}\n\n# CD ORIENTADA POR STAFF DR.(A) ${v('staff')}:\n# EXAMES COMPLEMENTARES:\n${v('exames_comp')}\n\n- ${v('conduta')}\n\nQUEIXAS GINECOLOGICAS: ${v('queixas_gyn')}`;
             }
             document.getElementById('final-text').value = out;
         }
@@ -567,6 +475,7 @@
         function copyToClipboard() {
             const copyText = document.getElementById("final-text");
             copyText.select();
+            copyText.setSelectionRange(0, 99999);
             document.execCommand("copy");
             alert("Copiado com sucesso!");
         }
