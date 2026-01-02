@@ -434,7 +434,6 @@
                 <p class="font-bold">SELECIONE UMA PACIENTE PARA EVOLUIR</p>
             </div>
             <div id="evolution-content" class="hidden animate-in space-y-6">
-                <!-- Header Paciente -->
                 <div class="flex justify-between items-start border-b border-slate-100 pb-4">
                     <div>
                         <h2 id="evo-nome" class="text-xl font-bold text-slate-800">NOME DA PACIENTE</h2>
@@ -447,8 +446,6 @@
                         class="text-red-400 hover:text-red-600 px-3 py-1 text-xs font-bold uppercase border border-red-100 rounded hover:bg-red-50">Dar
                         Alta / Remover</button>
                 </div>
-
-                <!-- DADOS BÁSICOS -->
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-xl">
                     <div class="col-span-2"><label class="label-text">Prontuário</label><input id="evo-prontuario"
                             class="input-field"></div>
@@ -460,12 +457,9 @@
                             class="input-field"></div>
                 </div>
 
-                <!-- CHECKLIST DINAMICO -->
                 <div class="border border-indigo-100 bg-indigo-50/30 rounded-xl p-5">
-                    <h3 class="text-xs font-bold text-indigo-700 uppercase mb-3 flex items-center gap-2">
-                        <i data-lucide="list-checks" class="w-4 h-4"></i> Checklist Diário & AI
-                    </h3>
-
+                    <h3 class="text-xs font-bold text-indigo-700 uppercase mb-3 flex items-center gap-2"><i
+                            data-lucide="list-checks" class="w-4 h-4"></i> Checklist Diário & AI</h3>
                     <div id="checklist-gestante"
                         class="grid grid-cols-2 md:grid-cols-3 gap-y-2 gap-x-4 checkbox-group hidden">
                         <label><input type="checkbox" value="MOVIMENTAÇÃO FETAL PRESERVADA" class="ai-check"> Mov. Fetal
@@ -481,7 +475,6 @@
                         <label><input type="checkbox" value="SEM SINAIS DE IMINÊNCIA DE ECLÂMPSIA" class="ai-check"> Sem
                             Sinais Iminência</label>
                     </div>
-
                     <div id="checklist-puerpera"
                         class="grid grid-cols-2 md:grid-cols-3 gap-y-2 gap-x-4 checkbox-group hidden">
                         <label><input type="checkbox" value="DEAMBULAÇÃO LIVRE" class="ai-check"> Deambulação</label>
@@ -495,22 +488,18 @@
                         <label><input type="checkbox" value="FERIDA OPERATÓRIA LIMPA E SECA" class="ai-check"> FO
                             Cesárea OK</label>
                     </div>
-
                     <div class="mt-4 pt-4 border-t border-indigo-100">
                         <label class="label-text">Outras queixas / Observações</label>
                         <input id="evo-obs" class="input-field mb-2" placeholder="Digite detalhes específicos aqui...">
                         <button onclick="generateEvolutionAI()"
-                            class="w-full btn-primary bg-indigo-600 hover:bg-indigo-700 text-xs py-2 shadow-sm">
-                            <i data-lucide="sparkles" class="w-3 h-3"></i> Gerar HDA Narrativa ✨
-                        </button>
+                            class="w-full btn-primary bg-indigo-600 hover:bg-indigo-700 text-xs py-2 shadow-sm"><i
+                                data-lucide="sparkles" class="w-3 h-3"></i> Gerar HDA Narrativa ✨</button>
                     </div>
                 </div>
 
-                <!-- INPUTS CLÁSSICOS -->
                 <div class="space-y-4">
                     <div class="h-40"><label class="label-text">HDA (Evolução Narrativa)</label><textarea id="evo-hda"
                             class="input-field h-full"></textarea></div>
-
                     <div class="bg-slate-50 p-4 rounded-xl">
                         <h4 class="text-xs font-bold text-slate-500 uppercase mb-3">Exame Físico / Sinais Vitais</h4>
                         <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-3">
@@ -531,16 +520,14 @@
                             <input id="evo-mmii" class="input-field" placeholder="MMII (EDEMA/PANTURRILHAS)">
                         </div>
                     </div>
-
                     <div><label class="label-text">Conduta</label><textarea id="evo-conduta" class="input-field h-20"
                             placeholder="MANTER CONDUTA / ALTA / EXAMES"></textarea></div>
                 </div>
 
                 <div class="bg-slate-900 p-6 rounded-xl shadow-2xl">
                     <button onclick="generateFinalEvolution()"
-                        class="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-lg text-xs font-bold mb-4 w-full md:w-auto">
-                        FINALIZAR EVOLUÇÃO
-                    </button>
+                        class="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-lg text-xs font-bold mb-4 w-full md:w-auto">FINALIZAR
+                        EVOLUÇÃO</button>
                     <textarea id="evo-final-text"
                         class="w-full h-80 bg-slate-800 text-slate-300 font-mono text-xs p-4 rounded-lg outline-none resize-none mb-4"
                         readonly></textarea>
@@ -678,7 +665,6 @@
     </script>
     <script>
         lucide.createIcons();
-        // API KEY FIXADA PELA REGRA DO USUARIO
         const API_KEY = "AIzaSyCqzFaH4nQGkBLLLTDyEQtbtwAUxTFeoH0";
         let MODE = 'OBST';
 
@@ -694,7 +680,7 @@
             }
         }
 
-        // --- ROUND IMPORT (LOGIC UPGRADE) ---
+        // --- ROUND IMPORT ---
         window.importRound = async function (input) {
             if (!input.files[0]) return;
             const file = input.files[0];
@@ -756,15 +742,15 @@
 
                 const data = await resp.json();
                 let jsonText = data.candidates[0].content.parts[0].text;
-                // Remove potential markdown code blocks if gemini sends them despite prompt
+                // Clean potential markdown blocks
                 jsonText = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
-
                 const patients = JSON.parse(jsonText);
+
                 console.log("Extracted:", patients);
 
                 if (window.batchImportPatients) {
                     await window.batchImportPatients(patients);
-                    alert(`Sucesso! ${patients.length} pacientes importadas e salvas.`);
+                    alert(`Sucesso! ${patients.length} pacientes importadas.`);
                 }
             } catch (e) {
                 console.error(e);
