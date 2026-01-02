@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedAssist GO - Plantão Inteligente</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #334155; }
+        .hidden { display: none; }
+        .active-tab { 
+            border-bottom: 2px solid #2563eb; 
+            color: #1e40af; 
+            background-color: #eff6ff;
+        }
+        .input-field {
+            width: 100%;
+            padding: 0.5rem 0.75rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            background-color: #ffffff;
+            transition: all 0.2s;
+            text-transform: uppercase;
+        }
+        .input-field:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        .label-text {
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.025em;
+            margin-bottom: 0.25rem;
+            display: block;
+        }
+        .card {
+            background-color: white;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            border: 1px solid #e2e8f0;
+        }
+        .btn-primary {
+            background-color: #2563eb;
+            color: white;
+            font-weight: 600;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            transition: background-color 0.2s;
+        }
+        .btn-primary:hover { background-color: #1d4ed8; }
+        
+        /* Loading Animation */
+        .typing-indicator span {
+            display: inline-block;
+            width: 4px;
+            height: 4px;
+            background-color: #3b82f6;
+            border-radius: 50%;
+            animation: typing 1s infinite;
+            margin: 0 2px;
+        }
+        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typing { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+    </style>
+</head>
+<body class="p-4 md:p-8 min-h-screen">
+
+    <div class="max-w-7xl mx-auto space-y-6">
+        
+        <!-- HEADER -->
+        <header class="card p-5 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="bg-blue-50 p-2 rounded-lg">
+                    <i data-lucide="activity" class="text-blue-600 w-6 h-6"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold text-slate-800 tracking-tight">MedAssist GO</h1>
+                    <p class="text-xs text-slate-500 font-semibold uppercase" id="header-subtitle">Urgência Obstétrica</p>
+                </div>
+            </div>
+            
+            <div class="flex bg-slate-100 p-1 rounded-lg">
+                <button onclick="setMode('OBST')" id="btn-obst" class="px-5 py-2 rounded-md text-xs font-bold transition-all bg-white text-blue-700 shadow-sm border border-slate-200">OBSTETRÍCIA</button>
+                <button onclick="setMode('GYN')" id="btn-gyn" class="px-5 py-2 rounded-md text-xs font-bold transition-all text-slate-500 hover:text-slate-700">GINECOLOGIA</button>
+            </div>
+        </header>
+
+        <!-- NAVEGAÇÃO -->
+        <nav class="flex overflow-x-auto bg-white border border-slate-200 rounded-lg shadow-sm">
+            <button onclick="showTab('id')" class="flex-1 py-4 px-6 text-xs font-bold uppercase whitespace-nowrap hover:bg-slate-50 active-tab nav-btn flex items-center justify-center gap-2" id="nav-id"><i data-lucide="user" class="w-3 h-3"></i> Identificação</button>
+            <button onclick="showTab('anamnese')" class="flex-1 py-4 px-6 text-xs font-bold uppercase whitespace-nowrap hover:bg-slate-50 nav-btn flex items-center justify-center gap-2" id="nav-anamnese"><i data-lucide="message-square" class="w-3 h-3"></i> Anamnese ✨</button>
+            <button onclick="showTab('exame')" class="flex-1 py-4 px-6 text-xs font-bold uppercase whitespace-nowrap hover:bg-slate-50 nav-btn flex items-center justify-center gap-2" id="nav-exame"><i data-lucide="stethoscope" class="w-3 h-3"></i> Exame Físico</button>
+            <button onclick="showTab('docs')" class="flex-1 py-4 px-6 text-xs font-bold uppercase whitespace-nowrap hover:bg-slate-50 nav-btn flex items-center justify-center gap-2" id="nav-docs"><i data-lucide="file-text" class="w-3 h-3"></i> Docs & IA</button>
+            <button onclick="showTab('final')" class="flex-1 py-4 px-6 text-xs font-bold uppercase whitespace-nowrap bg-slate-800 text-white hover:bg-slate-700 nav-btn flex items-center justify-center gap-2" id="nav-final"><i data-lucide="file-check" class="w-3 h-3"></i> Gerar Prontuário</button>
+        </nav>
+
+        <!-- CONTEÚDO PRINCIPAL -->
+        <main class="card p-6 md:p-8 min-h-[600px]">
+            
+            <!-- 1. IDENTIFICAÇÃO -->
+            <section id="tab-id" class="grid grid-cols-1 md:grid-cols-4 gap-5 animate-in">
+                <div class="md:col-span-2">
+                    <label class="label-text">Nome Completo</label>
+                    <input id="nome" class="input-field" placeholder="NOME DA PACIENTE">
+                </div>
+                <div>
+                    <label class="label-text">Idade</label>
+                    <input id="idade" class="input-field">
+                </div>
+                <div>
+                    <label class="label-text">Prontuário</label>
+                    <input id="prontuario" class="input-field">
+                </div>
+
+                <!-- OBSTETRÍCIA -->
+                <div class="md:col-span-4 grid grid-cols-1 md:grid-cols-4 gap-5 obst-field border-t border-b border-slate-100 py-4 bg-slate-50/50 rounded-lg px-2">
+                    <div class="md:col-span-4 text-xs font-bold text-blue-600 mb-[-10px]">DADOS OBSTÉTRICOS</div>
+                    <div><label class="label-text">G P A</label><input id="gpa" class="input-field" placeholder="G_ P_ A_"></div>
+                    <div><label class="label-text">Último Parto/Cesárea</label><input id="ultimo_parto" class="input-field"></div>
+                    <div><label class="label-text">Filhos Vivos</label><input id="filhos_vivos" class="input-field"></div>
+                    <div><label class="label-text">Curetagem</label><input id="curetagem" class="input-field"></div>
+                    
+                    <div class="md:col-span-2"><label class="label-text">IG (USG Data e IG)</label><input id="ig_usg" class="input-field"></div>
+                    <div class="md:col-span-2"><label class="label-text">TS | Toxo | GJ | TOTG</label><input id="labs_triagem" class="input-field"></div>
+                    
+                    <div><label class="label-text">Consultas PN</label><input id="pn_count" class="input-field"></div>
+                    <div><label class="label-text">GBS</label><input id="gbs" class="input-field"></div>
+                    <div class="md:col-span-2"><label class="label-text">Maturação</label><input id="maturacao" class="input-field"></div>
+                </div>
+
+                <!-- GINECOLOGIA -->
+                <div class="md:col-span-4 grid grid-cols-1 md:grid-cols-4 gap-5 gyn-field hidden border-t border-b border-slate-100 py-4 bg-pink-50/30 rounded-lg px-2">
+                    <div class="md:col-span-4 text-xs font-bold text-pink-600 mb-[-10px]">ANTECEDENTES GINECO-OBSTÉTRICOS</div>
+                    <div><label class="label-text">G P A</label><input id="gpa_gyn" class="input-field"></div>
+                    <div><label class="label-text">DUM</label><input id="dum" class="input-field"></div>
+                    <div><label class="label-text">Sexarca</label><input id="sexarca" class="input-field"></div>
+                    <div><label class="label-text">Método Contraceptivo</label><input id="mac" class="input-field"></div>
+                </div>
+
+                <div class="md:col-span-4"><label class="label-text">Comorbidades</label><input id="comorbidades" class="input-field" value="NEGA"></div>
+                <div class="md:col-span-2"><label class="label-text">MUC</label><input id="muc" class="input-field" value="NEGA"></div>
+                <div class="md:col-span-2"><label class="label-text">Alergias</label><input id="alergias" class="input-field" value="NEGA"></div>
+                <div class="md:col-span-2"><label class="label-text">Cirurgias Prévias</label><input id="cirurgias" class="input-field"></div>
+                <div class="md:col-span-2 obst-field"><label class="label-text">Hábitos</label><input id="habitos" class="input-field" value="NEGA"></div>
+            </section>
+
+            <!-- 2. ANAMNESE INTELIGENTE -->
+            <section id="tab-anamnese" class="hidden grid grid-cols-1 md:grid-cols-2 gap-6 animate-in">
+                
+                <!-- Coluna Esquerda: Entrada -->
+                <div class="space-y-4">
+                    <div>
+                        <label class="label-text text-blue-700">QUEIXA PRINCIPAL (QP)</label>
+                        <div class="relative">
+                            <input id="qp" class="input-field font-bold border-blue-200 bg-blue-50/30 text-lg py-3" placeholder="Ex: SANGRAMENTO VAGINAL" onblur="generateQuestions()">
+                            <button onclick="generateQuestions()" class="absolute right-2 top-2 p-1.5 bg-blue-100 rounded text-blue-600 hover:bg-blue-200 transition">
+                                <i data-lucide="sparkles" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                        <p class="text-[10px] text-slate-400 mt-1">*Digite a queixa e clique no ícone ou saia do campo para gerar perguntas.</p>
+                    </div>
+
+                    <!-- Box de Perguntas IA -->
+                    <div id="ai-questions-box" class="hidden border border-blue-100 bg-blue-50/50 rounded-xl p-4 transition-all">
+                        <div class="flex justify-between items-center mb-3">
+                            <h3 class="text-xs font-bold text-blue-700 flex items-center gap-2"><i data-lucide="bot" class="w-3 h-3"></i> PERGUNTAS SUGERIDAS</h3>
+                            <div class="typing-indicator hidden" id="typing-questions"><span></span><span></span><span></span></div>
+                        </div>
+                        <div id="questions-list" class="space-y-3 text-xs">
+                            <!-- Perguntas geradas aqui -->
+                        </div>
+                        <button onclick="generateAnamnesisText()" class="w-full mt-4 btn-primary text-xs py-2 shadow-sm flex items-center justify-center gap-2">
+                            <i data-lucide="pen-tool" class="w-3 h-3"></i> GERAR TEXTO DA HDA
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Coluna Direita: Texto Final -->
+                <div class="space-y-4">
+                    <div class="h-full flex flex-col">
+                        <label class="label-text text-blue-700">HISTÓRIA DA DOENÇA ATUAL (HDA)</label>
+                        <textarea id="hda" class="input-field flex-grow resize-none font-medium leading-relaxed text-slate-700 bg-white shadow-inner" style="min-height: 300px;" placeholder="O texto da anamnese gerado pela IA aparecerá aqui para você revisar..."></textarea>
+                    </div>
+                </div>
+
+                <!-- Campos Inferiores -->
+                <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-slate-100">
+                    <div class="obst-field w-full">
+                        <label class="label-text">HD (Negativas)</label>
+                        <input id="hd_neg" class="input-field" value="NEGA: SANGRAMENTOS, METROSSISTOLES, CORRIMENTO VAGINAL, PERDAS VAGINAIS, QUEIXAS URINARIAS.">
+                    </div>
+                    <div class="gyn-field hidden w-full space-y-4">
+                        <div><label class="label-text">IS - Urinárias</label><input id="is_urinarias" class="input-field" value="NEGA: DISURIA, POLACIURIA E INCONTINÊNCIA"></div>
+                        <div><label class="label-text">IS - Hábito Intestinal</label><input id="is_intestinal" class="input-field" value="REGULAR E FISIOLÓGICO"></div>
+                        <div><label class="label-text">Queixas Ginecológicas</label><input id="queixas_gyn" class="input-field" value="NEGA: CORRIMENTOS, DISPAREUNIA E SINUSORRAGIA"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 3. EXAME FÍSICO -->
+            <section id="tab-exame" class="hidden grid grid-cols-1 md:grid-cols-2 gap-5 animate-in">
+                <div class="md:col-span-2 bg-slate-50 p-4 rounded-lg border border-slate-100">
+                    <label class="label-text">Estado Geral</label>
+                    <input id="ef_geral" class="input-field mb-3" value="BEG, AAA, CORADA E HIDRATADA">
+                    <div class="grid grid-cols-3 gap-3">
+                        <div><label class="label-text">PA (mmHg)</label><input id="pa" class="input-field text-center"></div>
+                        <div><label class="label-text">FC (bpm)</label><input id="fc" class="input-field text-center"></div>
+                        <div><label class="label-text">SAT (%)</label><input id="sat" class="input-field text-center"></div>
+                    </div>
+                </div>
+
+                <div><label class="label-text">ACV</label><input id="acv" class="input-field" value="RCR, 2T, BNF, SS"></div>
+                <div><label class="label-text">AR</label><input id="ar" class="input-field" value="MV+, SRA, SEM SINAIS DE DESCONFORTO"></div>
+                <div class="md:col-span-2"><label class="label-text">Abdome</label><input id="abd" class="input-field" value="ABDOME GRAVIDICO, SEM DOR A PALPAÇÃO, RHA+, DB NEGATIVA."></div>
+
+                <!-- OBST -->
+                <div class="obst-field"><label class="label-text">Dinâmica</label><input id="dinamica" class="input-field" value="AUSENTE"></div>
+                <div class="obst-field"><label class="label-text">AFU (cm)</label><input id="afu" class="input-field text-center font-bold"></div>
+                <div class="obst-field"><label class="label-text text-blue-600">BCF (bpm)</label><input id="bcf" class="input-field text-center font-bold text-blue-600 border-blue-200"></div>
+                <div class="obst-field"><label class="label-text">Mov. Fetais</label><input id="mf" class="input-field" value="PRESENTES"></div>
+
+                <div class="md:col-span-1"><label class="label-text">Especular</label><textarea id="especular" class="input-field h-20">COLO TRÓFICO, ORIFÍCIO EXTERNO PUNTIFORME, VAGINA COM RUGOSIDADES TRÓFICAS E ÚMIDA. CONTEUDO VAGINAL FISIOLOGICO.</textarea></div>
+                <div class="md:col-span-1"><label class="label-text">Toque Vaginal</label><textarea id="tv" class="input-field h-20">COLO POSTERIOR, IMPERVIO, GROSSO.</textarea></div>
+                <div class="md:col-span-2"><label class="label-text">MMII</label><input id="mmii" class="input-field" value="AUSÊNCIA DE EDEMA. PANTURRILHAS LIVRES E INDOLORES"></div>
+            </section>
+
+            <!-- 4. DOCS E IA -->
+            <section id="tab-docs" class="hidden space-y-6 animate-in">
+                <div class="border-2 border-dashed border-blue-200 bg-blue-50 rounded-xl p-8 text-center hover:bg-blue-100 transition-colors relative cursor-pointer group">
+                    <input type="file" id="file-input" class="absolute inset-0 opacity-0 cursor-pointer z-10" onchange="processFile()" accept="image/*,application/pdf">
+                    <div class="pointer-events-none">
+                        <i data-lucide="scan-line" class="w-12 h-12 text-blue-400 mx-auto mb-3 group-hover:scale-110 transition-transform"></i>
+                        <h3 class="text-sm font-bold text-blue-800 uppercase">Leitura Mágica de Documentos</h3>
+                        <p class="text-xs text-blue-500 mt-1">Arraste PDF ou Foto aqui para preencher tudo automaticamente</p>
+                        <div id="ai-status" class="mt-4 text-xs font-mono text-blue-600 hidden bg-white px-3 py-1 rounded-full inline-block shadow-sm">Processando...</div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div class="obst-field md:col-span-2"><label class="label-text">APAE I (Data/Resumo)</label><textarea id="apae1" class="input-field h-20"></textarea></div>
+                    <div class="obst-field md:col-span-2"><label class="label-text">APAE II (Data/Resumo)</label><textarea id="apae2" class="input-field h-20"></textarea></div>
+                    
+                    <div class="obst-field"><label class="label-text">USG 1T</label><input id="usg_1t" class="input-field"></div>
+                    <div class="obst-field"><label class="label-text">USG Morfológico</label><input id="usg_morf" class="input-field"></div>
+                    
+                    <div class="md:col-span-2">
+                        <label class="label-text text-blue-600">Último USG / Exames Gerais</label>
+                        <textarea id="exames_comp" class="input-field h-32 font-mono text-xs leading-relaxed bg-slate-50"></textarea>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 5. FINAL -->
+            <section id="tab-final" class="hidden space-y-6 animate-in">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div class="obst-field md:col-span-2"><label class="label-text">Plano de Parto</label><input id="plano_parto" class="input-field"></div>
+                    <div class="obst-field md:col-span-2"><label class="label-text">Gestação Tópica IG</label><input id="gestacao_ig" class="input-field"></div>
+                    
+                    <div><label class="label-text">Staff Responsável</label><input id="staff" class="input-field"></div>
+                    <div class="md:col-span-2"><label class="label-text">Conduta</label><textarea id="conduta" class="input-field h-24"></textarea></div>
+                </div>
+
+                <div class="bg-slate-900 p-6 rounded-xl shadow-2xl mt-4 border border-slate-700">
+                    <div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-4">
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2"><i data-lucide="file-check" class="w-4 h-4"></i> Resultado Final</span>
+                        <button onclick="generateOutput()" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-xs font-bold transition-colors flex items-center gap-2">
+                            <i data-lucide="refresh-cw" class="w-3 h-3"></i> ATUALIZAR
+                        </button>
+                    </div>
+                    <textarea id="final-text" class="w-full h-96 bg-slate-800 text-slate-300 font-mono text-xs p-4 rounded-lg outline-none resize-none leading-relaxed border border-slate-700 focus:border-blue-500 transition-colors" readonly></textarea>
+                    <button onclick="copyToClipboard()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 rounded-lg mt-4 uppercase text-sm shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-[0.99]">
+                        <i data-lucide="copy" class="w-5 h-5"></i> COPIAR PARA PRONTUÁRIO
+                    </button>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <script>
+        lucide.createIcons();
+        const API_KEY = "AIzaSyCqzFaH4nQGkBLLLTDyEQtbtwAUxTFeoH0";
+        let MODE = 'OBST';
+
+        // --- SISTEMA DE ABAS ---
+        function showTab(id) {
+            document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
+            document.getElementById('tab-' + id).classList.remove('hidden');
+            document.querySelectorAll('.nav-btn').forEach(b => {
+                b.classList.remove('active-tab', 'text-blue-700', 'bg-blue-50');
+                if(b.id !== 'nav-final') b.classList.add('text-slate-500');
+            });
+            
+            const btn = document.getElementById('nav-' + id);
+            if(id !== 'final') {
+                btn.classList.add('active-tab', 'text-blue-700', 'bg-blue-50');
+                btn.classList.remove('text-slate-500');
+            }
+        }
+
+        // --- SELETOR OBST/GYN ---
+        function setMode(mode) {
+            MODE = mode;
+            const btnObst = document.getElementById('btn-obst');
+            const btnGyn = document.getElementById('btn-gyn');
+            const obstFields = document.querySelectorAll('.obst-field');
+            const gynFields = document.querySelectorAll('.gyn-field');
+            
+            if(mode === 'OBST') {
+                btnObst.className = "px-5 py-2 rounded-md text-xs font-bold transition-all bg-white text-blue-700 shadow-sm border border-slate-200";
+                btnGyn.className = "px-5 py-2 rounded-md text-xs font-bold transition-all text-slate-500 hover:text-slate-700";
+                document.getElementById('header-subtitle').innerText = "URGÊNCIA OBSTETRÍCIA";
+                document.getElementById('header-subtitle').className = "text-xs text-blue-500 font-semibold uppercase";
+                
+                obstFields.forEach(e => e.classList.remove('hidden'));
+                gynFields.forEach(e => e.classList.add('hidden'));
+                
+                // Defaults
+                document.getElementById('abd').value = "ABDOME GRAVIDICO, SEM DOR A PALPAÇÃO, RHA+, DB NEGATIVA.";
+                document.getElementById('especular').value = "COLO TRÓFICO, ORIFÍCIO EXTERNO PUNTIFORME, VAGINA COM RUGOSIDADES TRÓFICAS E ÚMIDA. CONTEUDO VAGINAL";
+                document.getElementById('tv').value = "COLO POSTERIOR, IMPERVIO, GROSSO.";
+                document.getElementById('conduta').value = "ORIENTO PACIENTE SOBRE O QUADRO. ORIENTO RETORNO IMEDIATO SE SINAIS DE ALARME: PICO APRESSÓRICO, REDUÇÃO DE MF, PERDA DE LIQUIDO, SANGRAMENTO VAGINAL.";
+            } else {
+                btnGyn.className = "px-5 py-2 rounded-md text-xs font-bold transition-all bg-white text-pink-600 shadow-sm border border-pink-200";
+                btnObst.className = "px-5 py-2 rounded-md text-xs font-bold transition-all text-slate-500 hover:text-slate-700";
+                document.getElementById('header-subtitle').innerText = "CONSULTA GINECOLÓGICA";
+                document.getElementById('header-subtitle').className = "text-xs text-pink-500 font-semibold uppercase";
+                
+                obstFields.forEach(e => e.classList.add('hidden'));
+                gynFields.forEach(e => e.classList.remove('hidden'));
+                
+                // Defaults
+                document.getElementById('abd').value = "RHA +, FLACIDO, INDOLOR A PALPAÇÃO SUPERFICIAL E PROFUNDA, SVM OU MASSAS, DB NEGATIVA";
+                document.getElementById('especular').value = "COLO TRÓFICO, PUNTIFORME, VAGINA TRÓFICA, COM RUGOSIDADES NORMAIS E LUBRIFICAÇÃO HABITUAL. AUSÊNCIA DE ALTERAÇÕES.";
+                document.getElementById('tv').value = "COLO POSTERIOR, FIBROELASTICO, UTÉRO AVF, MÓVEL, NORMOVOLUMÉTRIO, DOR À MOBILIZAÇÃO DO COLO EM FID, ANEXOS NÃO PALPAVEIS";
+                document.getElementById('conduta').value = "ORIENTO PACIENTE SOBRE O QUADRO, TRATAMENTO E SEGUIMENTO PROPOSTO. ORIENTO SINAIS DE ALARME.";
+            }
+        }
+
+        // --- IA: GERADOR DE PERGUNTAS (QP) ---
+        async function generateQuestions() {
+            const qp = document.getElementById('qp').value;
+            const box = document.getElementById('ai-questions-box');
+            const list = document.getElementById('questions-list');
+            const indicator = document.getElementById('typing-questions');
+
+            if (!qp) return;
+
+            box.classList.remove('hidden');
+            list.innerHTML = '';
+            indicator.classList.remove('hidden');
+
+            const prompt = `Como médico obstetra/ginecologista experiente, liste 5 perguntas clínicas curtas e diretas essenciais para anamnese de uma paciente com queixa de: "${qp}". Foco em diagnóstico diferencial e gravidade. Retorne apenas as perguntas em lista.`;
+
+            try {
+                const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEY}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                });
+                
+                const data = await resp.json();
+                const text = data.candidates[0].content.parts[0].text;
+                
+                // Limpa e formata as perguntas como inputs interativos
+                const questions = text.split('\n').filter(q => q.trim().length > 0);
+                
+                indicator.classList.add('hidden');
+                list.innerHTML = questions.map((q, idx) => `
+                    <div class="mb-2">
+                        <label class="block text-slate-600 font-semibold mb-1">${q.replace(/^\d+\.\s*|-\s*/, '')}</label>
+                        <input class="input-field text-xs q-response" placeholder="Digite a resposta..." data-question="${q}">
+                    </div>
+                `).join('');
+
+            } catch (e) {
+                console.error(e);
+                indicator.classList.add('hidden');
+                list.innerHTML = '<p class="text-red-500">Erro ao gerar perguntas.</p>';
+            }
+        }
+
+        // --- IA: GERADOR DE TEXTO DE ANAMNESE ---
+        async function generateAnamnesisText() {
+            const qp = document.getElementById('qp').value;
+            const responses = Array.from(document.querySelectorAll('.q-response')).map(input => {
+                return input.value ? `Pergunta: ${input.dataset.question} Resposta: ${input.value}` : null;
+            }).filter(Boolean);
+
+            if (responses.length === 0) {
+                alert("Responda pelo menos uma pergunta para gerar o texto.");
+                return;
+            }
+
+            const btn = document.querySelector('#ai-questions-box button');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = `<i data-lucide="loader-2" class="w-3 h-3 animate-spin"></i> GERANDO...`;
+            
+            const prompt = `Atue como médico. Com base na QP: "${qp}" e nas seguintes respostas da anamnese: ${responses.join('; ')}. Redija um texto coerente, técnico e fluido para o campo "História da Doença Atual" (HDA) de um prontuário médico. Use termos técnicos médicos padrão. Não use tópicos, faça um parágrafo narrativo.`;
+
+            try {
+                const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEY}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                });
+                
+                const data = await resp.json();
+                const text = data.candidates[0].content.parts[0].text;
+                
+                document.getElementById('hda').value = text;
+                document.getElementById('ai-questions-box').classList.add('hidden'); // Esconde box após gerar
+                
+            } catch (e) {
+                alert("Erro ao gerar texto.");
+            } finally {
+                btn.innerHTML = originalText;
+                lucide.createIcons();
+            }
+        }
+
+        // --- IA: LEITURA DE ARQUIVO ---
+        async function processFile() {
+            const input = document.getElementById('file-input');
+            const status = document.getElementById('ai-status');
+            if(!input.files[0]) return;
+
+            status.classList.remove('hidden');
+            status.innerText = "Lendo e extraindo dados...";
+
+            const file = input.files[0];
+            const reader = new FileReader();
+            
+            reader.onload = async function(e) {
+                const base64 = e.target.result.split(',')[1];
+                const prompt = `Extraia dados médicos para JSON estrito: nome, idade, prontuario, gpa, ultimo_parto, filhos_vivos, curetagem, ig_usg, ts, toxo, gj, totg, comorbidades, muc, alergias, cirurgias, habitos, pn_count, gbs, maturacao, qp, hda, pa, fc, abd, dinamica, afu, bcf, mf, especular, tv, mmii, apae1, apae2, usg1t, usgmorf, usg_ultimo, dum, sexarca, mac`;
+
+                try {
+                    const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEY}`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType: file.type, data: base64 } }] }],
+                            generationConfig: { responseMimeType: "application/json" }
+                        })
+                    });
+                    const data = await resp.json();
+                    const json = JSON.parse(data.candidates[0].content.parts[0].text);
+                    
+                    const set = (id, v) => { if(document.getElementById(id) && v) document.getElementById(id).value = v; }
+                    set('nome', json.nome); set('idade', json.idade); set('prontuario', json.prontuario);
+                    set('gpa', json.gpa); set('gpa_gyn', json.gpa); set('ultimo_parto', json.ultimo_parto);
+                    set('filhos_vivos', json.filhos_vivos); set('curetagem', json.curetagem);
+                    set('ig_usg', json.ig_usg); set('labs_triagem', `${json.ts || ''} ${json.toxo ? '| TOXO: '+json.toxo : ''} ${json.gj ? '| GJ: '+json.gj : ''}`);
+                    set('comorbidades', json.comorbidades); set('muc', json.muc); set('alergias', json.alergias);
+                    set('cirurgias', json.cirurgias); set('habitos', json.habitos); set('pn_count', json.pn_count);
+                    set('gbs', json.gbs); set('maturacao', json.maturacao);
+                    set('qp', json.qp); set('hda', json.hda);
+                    set('pa', json.pa); set('fc', json.fc);
+                    set('usg_ultimo', json.usg_ultimo); set('dum', json.dum); set('sexarca', json.sexarca); set('mac', json.mac);
+
+                    status.innerText = "Concluído!";
+                    setTimeout(() => status.classList.add('hidden'), 2000);
+                } catch(err) {
+                    status.innerText = "Erro na leitura.";
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // --- GERAÇÃO DE SAÍDA ---
+        function generateOutput() {
+            const v = (id) => document.getElementById(id).value.toUpperCase().trim() || 'NEGA/NÃO INF.';
+            const d = new Date().toLocaleDateString('pt-BR');
+            let out = "";
+
+            if (MODE === 'OBST') {
+                out = `## URGÊNCIA OBSTETRÍCIA MATERNIDADE - DATA ${d} ###\n\n`;
+                out += `- NOME: ${v('nome')}\n`;
+                out += `- IDADE: ${v('idade')}\n`;
+                out += `- PRONTUÁRIO: ${v('prontuario')}\n`;
+                out += `- PARIDADE: ${v('gpa')}\n`;
+                out += `   >> ÚLTIMO PARTO/ CESÁREA HÁ: ${v('ultimo_parto')}\n`;
+                out += `   >> N° FILHOS VIVOS: ${v('filhos_vivos')}\n`;
+                out += `   >> CURETAGEM: ${v('curetagem')}\n`;
+                out += `- IG: ${v('ig_usg')}\n`;
+                out += `- TS: | TOXOPLASMOSE: | GJ: | TOTG: ${v('labs_triagem')}\n`;
+                out += `- COMORBIDADES: ${v('comorbidades')}\n`;
+                out += `- MUC: ${v('muc')}\n`;
+                out += `- ALERGIAS: ${v('alergias')}\n`;
+                out += `- CIRURGIAS PRÉVIAS: ${v('cirurgias')}\n`;
+                out += `- TABAGISMO/ ETILISMO/UDI: ${v('habitos')}\n`;
+                out += `- QUANTIDADES DE CONSULTAS DE PRÉ-NATAL: ${v('pn_count')}\n`;
+                out += `- GBS: ${v('gbs')}\n`;
+                out += `- MATURAÇÃO: ${v('maturacao')}\n\n`;
+                out += `# QP: ${v('qp')}\n\n`;
+                out += `# HDA: ${v('hda')}\n\n`;
+                out += `# HD: ${v('hd_neg')}\n\n`;
+                out += `# EXAME FÍSICO:\n`;
+                out += `- ${v('ef_geral')}\n`;
+                out += `- SINAIS VITAIS: PA: ${v('pa')} MMHG / FC: ${v('fc')} BPM\n`;
+                out += `- ACV: ${v('acv')}\n`;
+                out += `- AR: ${v('ar')}\n`;
+                out += `- ABD: ${v('abd')}\n`;
+                out += `- DINAMICA UTERINA: ${v('dinamica')}\n`;
+                out += `- AFU: ${v('afu')} CM; AL FISIOLOGICO\n`;
+                out += `- BCF: ${v('bcf')} BPM- SEM DESACELERAÇÕES\n`;
+                out += `- MOVIMENTOS FETAIS: ${v('mf')}\n`;
+                out += `- ESPECULAR (SE REALIZADO): ${v('especular')}\n`;
+                out += `- TV (SE REALIZADO): ${v('tv')}\n`;
+                out += `- MMII: ${v('mmii')}\n\n`;
+                out += `# EXAMES COMPLEMENTARES:\n>> APAE<<\n`;
+                out += `- APAE I (DATA): ${v('apae1')}\n`;
+                out += `- APAE II (DATA): ${v('apae2')}\n`;
+                out += `>> USG<<\n`;
+                out += `- USG 1T: ${v('usg_1t')}\n`;
+                out += `- USG MORFOLOGICO: ${v('usg_morf')}\n`;
+                out += `- ÚLTIMO USG: ${v('exames_comp')}\n`;
+                out += `- SEMPRE RECALCULAR PESO PELO HADLOCK (SITE PERINATOLOGY)\n\n`;
+                out += `# PLANO DE PARTO: ${v('plano_parto')}\n`;
+                out += `- GESTAÇÃO TÓPICA IG: ${v('gestacao_ig')}\n\n`;
+                out += `# CONDUTA DISCUTIDA E ORIENTADA POR STAFF DR ${v('staff')}\n`;
+                out += `- ${v('conduta')}`;
+            } else {
+                out = `###########################################################\n`;
+                out += `###### CONSULTA GINECOLÓGICA  URGÊNCIA - DATA ${d} #####\n\n`;
+                out += `- NOME: ${v('nome')}\n`;
+                out += `- PRONTUÁRIO: ${v('prontuario')}\n`;
+                out += `- IDADE: ${v('idade')}\n`;
+                out += `- COMORBIDADES: ${v('comorbidades')}\n`;
+                out += `- MUC: ${v('muc')}\n`;
+                out += `- ALERGIAS: ${v('alergias')}\n`;
+                out += `- CIRURGIAS: ${v('cirurgias')}\n\n`;
+                out += `# ANTECEDENTES GINECO-OBSTÉTRICOS:\n`;
+                out += `- ${v('gpa_gyn')}\n`;
+                out += `- DUM: ${v('dum')}\n`;
+                out += `- SEXARCA: ${v('sexarca')}\n`;
+                out += `- MÉTODO CONTRACEPTIVO: ${v('mac')}\n\n`;
+                out += `# HDA: ${v('hda')}\n\n`;
+                out += `# IS:\n`;
+                out += `- URINÁRIAS: ${v('is_urinarias')}\n`;
+                out += `- HABITO INTESTINAL: ${v('is_intestinal')}\n\n`;
+                out += `# EXAME FÍSICO\n`;
+                out += `- SSVV: PA ${v('pa')} MMHG // FC ${v('fc')} BPM // SAT ${v('sat')}% AA\n`;
+                out += `- ${v('ef_geral')}\n`;
+                out += `- ACV: ${v('acv')}\n`;
+                out += `- AR: ${v('ar')}\n`;
+                out += `- ABD: ${v('abd')}\n`;
+                out += `- ESPECULAR: ${v('especular')}\n`;
+                out += `- TV: ${v('tv')}\n`;
+                out += `- MMII: ${v('mmii')}\n\n`;
+                out += `# CD ORIENTADA POR STAFF DR.(A) ${v('staff')}:\n`;
+                out += `# EXAMES COMPLEMENTARES:\n${v('exames_comp')}\n\n`;
+                out += `- ${v('conduta')}\n\n`;
+                out += `QUEIXAS GINECOLOGICAS: ${v('queixas_gyn')}`;
+            }
+            document.getElementById('final-text').value = out;
+        }
+
+        function copyToClipboard() {
+            const copyText = document.getElementById("final-text");
+            copyText.select();
+            document.execCommand("copy");
+            alert("Copiado com sucesso!");
+        }
+    </script>
+</body>
+</html>
