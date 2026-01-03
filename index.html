@@ -139,8 +139,10 @@
     <nav
         class="max-w-7xl mx-auto mb-6 flex justify-between items-center bg-white p-2 rounded-xl shadow-sm border border-slate-200 sticky top-2 z-50">
         <div class="flex items-center gap-4">
+            <!-- LOGO ANTIGRAVITY -->
             <img src="https://i.postimg.cc/zvZch7RF/D9233933-7ECF-4893-9A6F-C8DA69D360A2.png"
-                class="h-10 w-auto rounded-md shadow-sm border border-slate-100" alt="MedAssist Logo">
+                class="h-24 w-auto rounded-md drop-shadow-xl hover:scale-105 transition-transform duration-300 border border-slate-100"
+                alt="MedAssist Logo">
             <div class="h-8 w-px bg-slate-200 hidden md:block"></div>
             <div class="flex gap-2">
                 <button onclick="switchModule('admissao')" id="mod-admissao"
@@ -665,7 +667,10 @@
     </script>
     <script>
         lucide.createIcons();
-        const API_KEY = "AIzaSyCqzFaH4nQGkBLLLTDyEQtbtwAUxTFeoH0";
+        // ⚠️ SUA CHAVE ANTERIOR FOI BLOQUEADA PELO GOOGLE (ERRO: "Key Leaked") ⚠️
+        // Por favor, gere uma nova chave em: https://aistudio.google.com/app/apikey
+        // E cole abaixo, dentro das aspas:
+        const API_KEY = "AIzaSyCmeOb2FE6UzkT9OM0hDOlVzEFJ9uBj9bg";
         let MODE = 'OBST';
 
         window.switchModule = function (mod) {
@@ -706,7 +711,6 @@
                     alert("Formato não suportado. Use DOCX ou PDF.");
                     loadEl.classList.add('hidden');
                 }
-
             } catch (e) {
                 console.error(e);
                 alert("Erro ao importar: " + e.message);
@@ -726,39 +730,69 @@
 
         async function callGeminiImport(prompt, textData, base64Data) {
             const loadEl = document.getElementById('import-loading');
-            try {
-                const parts = [{ text: prompt }];
-                if (textData) parts.push({ text: textData });
-                if (base64Data) parts.push({ inlineData: { mimeType: "application/pdf", data: base64Data } });
 
-                const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEY}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{ parts: parts }],
-                        generationConfig: { responseMimeType: "application/json" }
-                    })
-                });
+            // Lista de modelos priorizando o solicitado 2.0-flash
+            const models = [
+                "gemini-2.0-flash",
+                "gemini-2.0-flash-exp",
+                "gemini-1.5-flash"
+            ];
 
-                const data = await resp.json();
-                let jsonText = data.candidates[0].content.parts[0].text;
-                // Clean potential markdown blocks
-                jsonText = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
-                const patients = JSON.parse(jsonText);
+            let errorLog = [];
 
-                console.log("Extracted:", patients);
+            for (const model of models) {
+                try {
+                    console.log(`Tentando modelo: ${model}...`);
 
-                if (window.batchImportPatients) {
-                    await window.batchImportPatients(patients);
-                    alert(`Sucesso! ${patients.length} pacientes importadas.`);
+                    const parts = [{ text: prompt }];
+                    if (textData) parts.push({ text: textData });
+                    if (base64Data) parts.push({ inlineData: { mimeType: "application/pdf", data: base64Data } });
+
+                    const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${API_KEY}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{ parts: parts }],
+                            generationConfig: { responseMimeType: "application/json" }
+                        })
+                    });
+
+                    const data = await resp.json();
+
+                    if (data.error) {
+                        throw new Error(data.error.message);
+                    }
+                    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+                        throw new Error("Resposta vazia / Sem candidatos");
+                    }
+
+                    // SUCESSO!
+                    let jsonText = data.candidates[0].content.parts[0].text;
+                    jsonText = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
+                    const patients = JSON.parse(jsonText);
+                    console.log(`Sucesso com ${model}:`, patients);
+
+                    if (window.batchImportPatients) {
+                        await window.batchImportPatients(patients);
+                        alert(`SUCESSO!\nProcessado via: ${model}\nPacientes: ${patients.length}`);
+                    }
+
+                    loadEl.classList.add('hidden');
+                    document.getElementById('import-passometro').value = "";
+                    return;
+
+                } catch (e) {
+                    const msg = `[${model}] Falhou: ${e.message}`;
+                    console.warn(msg);
+                    errorLog.push(msg);
                 }
-            } catch (e) {
-                console.error(e);
-                alert("Erro na IA: " + e.message);
-            } finally {
-                loadEl.classList.add('hidden');
-                document.getElementById('import-passometro').value = "";
             }
+
+            // Se chegou aqui, todos falharam
+            console.error("Todos falharam:", errorLog);
+            alert(`FALHA NA IMPORTAÇÃO (Diagnóstico):\n\n${errorLog.join('\n\n')}\n\nVerifique sua cota ou chave API.`);
+            loadEl.classList.add('hidden');
+            document.getElementById('import-passometro').value = "";
         }
 
         window.generateEvolutionAI = async function () {
@@ -767,7 +801,7 @@
             const tipo = document.getElementById('evo-tipo').innerText;
             const prompt = `Escreva parágrafo HDA evolução médica hospitalar para ${tipo}, em CAIXA ALTA, linguagem técnica formal e fluida. Itens: ${checked.join(', ')}. Obs: ${obs}.`;
             try {
-                const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEY}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }) });
+                const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }) });
                 const data = await resp.json();
                 document.getElementById('evo-hda').value = data.candidates[0].content.parts[0].text;
             } catch (e) { alert("Erro AI"); }
@@ -817,7 +851,7 @@
             const box = document.getElementById('ai-questions-box'); const list = document.getElementById('questions-list');
             box.classList.remove('hidden'); list.innerHTML = 'Gerando...';
             try {
-                const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEY}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: "Liste 5 perguntas clinicas para anamnese de: " + qp }] }] }) });
+                const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: "Liste 5 perguntas clinicas para anamnese de: " + qp }] }] }) });
                 const data = await resp.json();
                 const text = data.candidates[0].content.parts[0].text;
                 list.innerHTML = text.split('\n').map(q => `<div class="mb-2"><label class="block text-slate-600 font-semibold mb-1">${q}</label><input class="input-field text-xs q-response" placeholder="Resposta..."></div>`).join('');
@@ -828,7 +862,7 @@
             const qp = document.getElementById('qp').value;
             const resps = Array.from(document.querySelectorAll('.q-response')).map(i => i.value).join('; ');
             try {
-                const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEY}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: `Crie texto HDA para prontuario com base em: ${qp}. Detalhes: ${resps}` }] }] }) });
+                const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: `Crie texto HDA para prontuario com base em: ${qp}. Detalhes: ${resps}` }] }] }) });
                 const data = await resp.json();
                 document.getElementById('hda').value = data.candidates[0].content.parts[0].text;
             } catch (e) { alert("Erro AI"); }
@@ -857,7 +891,7 @@
                 try {
                     const base64 = e.target.result.split(',')[1];
                     const prompt = `Extraia JSON: nome, idade, prontuario, gpa, ultimo_parto, ig_usg, labs_triagem, comorbidades, hda, pa, fc, etc.`;
-                    const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEY}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType: input.files[0].type, data: base64 } }] }], generationConfig: { responseMimeType: "application/json" } }) });
+                    const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType: input.files[0].type, data: base64 } }] }], generationConfig: { responseMimeType: "application/json" } }) });
                     const data = await resp.json();
                     const json = JSON.parse(data.candidates[0].content.parts[0].text);
                     const set = (id, v) => { if (document.getElementById(id) && v) document.getElementById(id).value = v; }

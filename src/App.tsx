@@ -28,6 +28,11 @@ function App() {
         {/* HEADER */}
         <header className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-4">
+            <img
+              src="https://i.postimg.cc/zvZch7RF/D9233933-7ECF-4893-9A6F-C8DA69D360A2.png"
+              alt="Logo Plantão Obstétrico"
+              className="h-24 w-auto drop-shadow-xl hover:scale-105 transition-transform duration-300"
+            />
             <div className={`p-3 rounded-xl transition-colors ${mode === 'OBST' ? 'bg-blue-50 text-blue-600' : 'bg-pink-50 text-pink-600'}`}>
               <Activity size={24} />
             </div>
